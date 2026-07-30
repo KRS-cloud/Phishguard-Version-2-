@@ -446,3 +446,8 @@
         height: 90px;
     }
 }
+.history-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}

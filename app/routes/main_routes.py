@@ -5,13 +5,14 @@ from flask import (
     jsonify,
     render_template,
     request,
+    session,
 )
 from flask_login import current_user, login_required
 
 from app.models import ScanHistory
 from app.services.ai_assistant import (
     explain_scan_result,
-    get_security_response,
+    get_ai_security_response,
 )
 
 main_bp = Blueprint(
@@ -168,14 +169,79 @@ def assistant():
 @login_required
 def assistant_message():
     """
-    Process incoming user messages and return AI security responses.
+    Handle general AI Assistant conversations with session history.
     """
-    data = request.get_json(silent=True) or {}
-    message = data.get("message", "")
 
-    result = get_security_response(message)
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+    message = data.get(
+        "message",
+        ""
+    ).strip()
+
+    if not message:
+        return jsonify({
+            "reply": "Please enter a message.",
+            "source": "local",
+        })
+
+    conversation = session.get(
+        "assistant_conversation",
+        [],
+    )
+
+    conversation.append({
+        "role": "user",
+        "message": message,
+    })
+
+    # Keep only recent conversation to avoid sending unlimited history.
+    conversation = conversation[-12:]
+
+    scan_context = data.get(
+        "scan_context"
+    )
+
+    result = get_ai_security_response(
+        message=message,
+        scan_context=scan_context,
+        conversation=conversation,
+    )
+
+    conversation.append({
+        "role": "assistant",
+        "message": result["reply"],
+    })
+
+    session[
+        "assistant_conversation"
+    ] = conversation[-12:]
+
+    session.modified = True
 
     return jsonify(result)
+
+
+@main_bp.route(
+    "/assistant/reset",
+    methods=["POST"],
+)
+@login_required
+def reset_assistant():
+    """
+    Clear the current AI conversation.
+    """
+
+    session.pop(
+        "assistant_conversation",
+        None,
+    )
+
+    return jsonify({
+        "success": True,
+    })
 
 
 @main_bp.route(

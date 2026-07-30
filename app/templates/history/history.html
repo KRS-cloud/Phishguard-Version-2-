@@ -21,12 +21,21 @@
                 </p>
             </div>
 
-            <a
-                class="button button-primary"
-                href="{{ url_for('analyzer.url_analyzer') }}"
-            >
-                New URL Scan
-            </a>
+            <div class="history-header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+                <a
+                    class="button button-outline"
+                    href="{{ url_for('history.export_csv') }}"
+                >
+                    Export CSV
+                </a>
+
+                <a
+                    class="button button-primary"
+                    href="{{ url_for('analyzer.url_analyzer') }}"
+                >
+                    New URL Scan
+                </a>
+            </div>
         </div>
 
         <div class="history-statistics">

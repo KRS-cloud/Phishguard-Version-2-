@@ -1,4 +1,7 @@
 import re
+from app.services.gemini_assistant import (
+    generate_ai_response,
+)
 
 
 def normalize_message(message):
@@ -489,3 +492,43 @@ def explain_scan_result(scan_result):
         ),
         "category": "scan_explanation",
     }
+
+
+def get_ai_security_response(
+    message,
+    scan_context=None,
+    conversation=None,
+):
+    """
+    Use Gemini when available and fall back to
+    the local assistant if the API is unavailable.
+    """
+
+    try:
+
+        reply = generate_ai_response(
+            message=message,
+            scan_context=scan_context,
+            conversation=conversation,
+        )
+
+        return {
+            "reply": reply,
+            "category": "ai",
+            "source": "gemini",
+        }
+
+    except Exception as error:
+
+        print(
+            "Gemini Assistant Error:",
+            error,
+        )
+
+        fallback = get_security_response(
+            message
+        )
+
+        fallback["source"] = "local"
+
+        return fallback

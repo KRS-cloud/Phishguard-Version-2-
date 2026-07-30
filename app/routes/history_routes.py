@@ -1,6 +1,17 @@
+import csv
+import io
 import json
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 
 from app.extensions import db
@@ -163,6 +174,79 @@ def scan_details(scan_id):
         "history/scan_details.html",
         scan=scan,
         recommendations=recommendations,
+    )
+
+
+@history_bp.route("/export/csv")
+@login_required
+def export_csv():
+    """
+    Export the current user's scan history as a CSV file.
+    """
+
+    query = (
+        db.select(ScanHistory)
+        .where(
+            ScanHistory.user_id == current_user.id
+        )
+        .order_by(
+            ScanHistory.created_at.desc()
+        )
+    )
+
+    scans = db.session.scalars(
+        query
+    ).all()
+
+    output = io.StringIO()
+
+    writer = csv.writer(output)
+
+    writer.writerow([
+        "ID",
+        "Scan Type",
+        "Input",
+        "Prediction",
+        "Risk Level",
+        "Risk Score",
+        "Confidence",
+        "Explanation",
+        "Recommendations",
+        "Created At",
+    ])
+
+    for scan in scans:
+
+        writer.writerow([
+            scan.id,
+            scan.scan_type,
+            scan.input_value,
+            scan.prediction,
+            scan.risk_level,
+            scan.risk_score,
+            scan.confidence or "",
+            scan.explanation or "",
+            scan.recommendations or "",
+            (
+                scan.created_at.strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                if scan.created_at
+                else ""
+            ),
+        ])
+
+    csv_data = output.getvalue()
+
+    output.close()
+
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition":
+                "attachment; filename=phishguard_scan_history.csv"
+        },
     )
 
 
